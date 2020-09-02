@@ -10,4 +10,4 @@
 #git clone https://github.com/rufengsuixing/luci-app-adguardhome package/luci-app-adguardhome
 #git clone https://github.com/Lienol/openwrt-package package/passwall
 #git clone https://github.com/Lienol/openwrt-package/tree/master/lienol/luci-app-passwall package/passwall
-git clone https://github.com/fw876/helloworld/tree/master/luci-app-ssr-plus package/luci-app-ssr-plus
+git clone https://github.com/fw876/helloworld package/luci-app-ssr-plus
