@@ -9,6 +9,13 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      - name: Test tmate DNS
+        continue-on-error: true
+        run: |
+          for host in ssh.tmate.io lon1.tmate.io nyc1.tmate.io sgp1.tmate.io sfo1.tmate.io; do
+            echo "===== $host ====="
+            getent ahosts "$host" || true
+          done
       - name: Test connection to tmate server
         run: |
           getent ahosts ssh.tmate.io
