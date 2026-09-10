@@ -19,7 +19,7 @@ on:
       ssh:
         description: 'SSH connection to Actions'
         required: false
-        default: 'false'
+        default: true'
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
@@ -40,7 +40,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@v6
 
     - name: Initialization environment
       env:
@@ -98,7 +98,18 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh != 'false') || contains(github.event.action, 'ssh')
       with:
-        limit-access-to-actor: true      
+        limit-access-to-actor: true
+    - name: Save generated configuration
+      run: |
+        cd openwrt
+        make defconfig
+
+    - name: Upload configuration
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenWrt_config
+        path: openwrt/.config
+        if-no-files-found: error
 
     - name: Compile the firmware
       id: compile
@@ -116,7 +127,7 @@ jobs:
       run: df -hT
 
     - name: Upload bin directory
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@v4
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
@@ -132,7 +143,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware directory
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@v4
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
