@@ -95,10 +95,13 @@ jobs:
 
     # ====== 在这里插入以下内容 ======
     - name: SSH connection to Actions
-      uses: mxschmitt/action-tmate@v3
-      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh != 'false') || contains(github.event.action, 'ssh')
+      uses: mxschmitt/action-tmate@v3.24
+      if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
+      timeout-minutes: 60
       with:
         limit-access-to-actor: true
+        connect-timeout-seconds: 120
+        
     - name: Save generated configuration
       run: |
         cd openwrt
