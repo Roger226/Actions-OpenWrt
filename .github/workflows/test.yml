@@ -1,0 +1,21 @@
+name: Test tmate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Test connection to tmate server
+        run: |
+          getent ahosts ssh.tmate.io
+          timeout 10 bash -c 'echo > /dev/tcp/ssh.tmate.io/22'
+
+      - name: Start tmate
+        uses: mxschmitt/action-tmate@v3.24
+        with:
+          limit-access-to-actor: true
+          connect-timeout-seconds: 120
