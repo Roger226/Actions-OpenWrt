@@ -112,6 +112,7 @@ jobs:
       with:
         name: OpenWrt_config
         path: openwrt/.config
+        include-hidden-files: true
         if-no-files-found: error
 
     - name: Compile the firmware
