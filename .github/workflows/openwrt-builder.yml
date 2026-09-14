@@ -81,10 +81,32 @@ jobs:
       run: |
         set -eux
     
-        PKG_DIR="feeds/packages/net/ddns-go"
-        MAKEFILE="$PKG_DIR/Makefile"
+        echo "===== Searching DDNS-Go package ====="
     
-        test -f "$MAKEFILE"
+        MAKEFILE="$(find -L feeds package \
+          -type f \
+          -path '*/ddns-go/Makefile' \
+          -print 2>/dev/null | head -n 1 || true)"
+    
+        if [ -n "$MAKEFILE" ]; then
+          PKG_DIR="$(dirname "$MAKEFILE")"
+          echo "Found DDNS-Go package: $PKG_DIR"
+        else
+          echo "DDNS-Go backend package not found; creating local package"
+    
+          PKG_DIR="package/ddns-go"
+          MAKEFILE="$PKG_DIR/Makefile"
+          mkdir -p "$PKG_DIR/files"
+    
+          curl -fsSL \
+            "https://raw.githubusercontent.com/coolsnowwolf/packages/master/net/ddns-go/Makefile" \
+            -o "$MAKEFILE"
+    
+          sed -i \
+            's#include ../../lang/golang/golang-package.mk#include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk#' \
+            "$MAKEFILE"
+        fi
+    
         mkdir -p "$PKG_DIR/files"
     
         curl -fsSL \
@@ -97,22 +119,23 @@ jobs:
     
         chmod 0755 "$PKG_DIR/files/ddns-go.init"
     
+        export DDNS_GO_MAKEFILE="$MAKEFILE"
+    
         python3 <<'PY'
+        import os
         from pathlib import Path
     
-        path = Path("feeds/packages/net/ddns-go/Makefile")
+        path = Path(os.environ["DDNS_GO_MAKEFILE"])
         text = path.read_text(encoding="utf-8")
     
         install_marker = "define Package/ddns-go/install\n"
     
-        conffiles_block = "\n".join([
-            "define Package/ddns-go/conffiles",
-            "/etc/config/ddns-go",
-            "/etc/ddns-go/config.yaml",
-            "endef",
-            "",
-            "",
-        ])
+        conffiles_block = (
+            "define Package/ddns-go/conffiles\n"
+            "/etc/config/ddns-go\n"
+            "/etc/ddns-go/config.yaml\n"
+            "endef\n\n"
+        )
     
         if "define Package/ddns-go/conffiles" not in text:
             if install_marker not in text:
@@ -125,17 +148,19 @@ jobs:
     
         binary_install = "\t$(call GoPackage/Package/Install/Bin,$(1))\n"
     
-        extra_install = "".join([
-            "\n",
-            "\t$(INSTALL_DIR) $(1)/etc/config\n",
-            "\t$(INSTALL_CONF) $(CURDIR)/files/ddns-go.conf $(1)/etc/config/ddns-go\n",
-            "\t$(INSTALL_DIR) $(1)/etc/init.d\n",
-            "\t$(INSTALL_BIN) $(CURDIR)/files/ddns-go.init $(1)/etc/init.d/ddns-go\n",
-        ])
+        extra_install = (
+            "\n"
+            "\t$(INSTALL_DIR) $(1)/etc/config\n"
+            "\t$(INSTALL_CONF) $(CURDIR)/files/ddns-go.conf "
+            "$(1)/etc/config/ddns-go\n"
+            "\t$(INSTALL_DIR) $(1)/etc/init.d\n"
+            "\t$(INSTALL_BIN) $(CURDIR)/files/ddns-go.init "
+            "$(1)/etc/init.d/ddns-go\n"
+        )
     
         if "$(CURDIR)/files/ddns-go.conf" not in text:
             if binary_install not in text:
-                raise SystemExit("ERROR: 找不到 Go 二进制安装语句")
+                raise SystemExit("ERROR: 找不到 GoPackage 二进制安装语句")
             text = text.replace(
                 binary_install,
                 binary_install + extra_install,
@@ -145,13 +170,21 @@ jobs:
         path.write_text(text, encoding="utf-8")
         PY
     
-        echo "===== Patched DDNS-Go Makefile ====="
+        echo "===== DDNS-Go package location ====="
+        echo "$PKG_DIR"
+    
+        echo "===== Default configuration ====="
+        cat "$PKG_DIR/files/ddns-go.conf"
+    
+        echo "===== Patched Makefile ====="
         sed -n '/define Package\/ddns-go\/conffiles/,/endef/p' "$MAKEFILE"
         sed -n '/define Package\/ddns-go\/install/,/endef/p' "$MAKEFILE"
     
+        test -f "$PKG_DIR/files/ddns-go.conf"
+        test -x "$PKG_DIR/files/ddns-go.init"
+        grep -q "config ddns-go 'config'" "$PKG_DIR/files/ddns-go.conf"
         grep -q 'files/ddns-go.conf' "$MAKEFILE"
         grep -q 'files/ddns-go.init' "$MAKEFILE"
-        grep -q "config ddns-go 'config'" "$PKG_DIR/files/ddns-go.conf"
 
     - name: Load custom configuration
       run: |
