@@ -77,9 +77,14 @@ jobs:
       run: cd openwrt && ./scripts/feeds install -a
 
     - name: Fix DDNS-Go package
+      working-directory: openwrt
       shell: bash
       run: |
         set -eux
+
+        pwd
+        test -d feeds
+        test -d package
     
         echo "===== Searching DDNS-Go package ====="
     
