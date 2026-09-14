@@ -76,6 +76,67 @@ jobs:
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
+    - name: Fix DDNS-Go package
+      shell: bash
+      run: |
+        set -eux
+
+        PKG_DIR="feeds/packages/net/ddns-go"
+        mkdir -p "$PKG_DIR/files"
+
+        curl -fsSL \
+          https://raw.githubusercontent.com/immortalwrt/packages/master/net/ddns-go/files/ddns-go.conf \
+          -o "$PKG_DIR/files/ddns-go.conf"
+
+        curl -fsSL \
+          https://raw.githubusercontent.com/immortalwrt/packages/master/net/ddns-go/files/ddns-go.init \
+          -o "$PKG_DIR/files/ddns-go.init"
+
+        chmod 0755 "$PKG_DIR/files/ddns-go.init"
+
+        python3 - <<'PY'
+        from pathlib import Path
+
+        path = Path("feeds/packages/net/ddns-go/Makefile")
+        text = path.read_text()
+
+        if "define Package/ddns-go/conffiles" not in text:
+          marker = "define Package/ddns-go/install\n"
+          addition = """define Package/ddns-go/conffiles
+        /etc/config/ddns-go
+        /etc/ddns-go/config.yaml
+        endef
+
+        """
+            if marker not in text:
+                raise SystemExit("找不到 ddns-go install 段，停止编译")
+            text = text.replace(marker, addition + marker, 1)
+
+        old = """define Package/ddns-go/install
+        \t$(call GoPackage/Package/Install/Bin,$(1))
+        endef
+        """
+
+        new = """define Package/ddns-go/install
+        \t$(call GoPackage/Package/Install/Bin,$(1))
+
+        \t$(INSTALL_DIR) $(1)/etc/config
+        \t$(INSTALL_CONF) $(CURDIR)/files/ddns-go.conf $(1)/etc/config/ddns-go
+        \t$(INSTALL_DIR) $(1)/etc/init.d
+        \t$(INSTALL_BIN) $(CURDIR)/files/ddns-go.init $(1)/etc/init.d/ddns-go
+        endef
+        """
+
+        if "$(CURDIR)/files/ddns-go.conf" not in text:
+            if old not in text:
+                raise SystemExit("ddns-go Makefile 结构发生变化，无法安全修改")
+            text = text.replace(old, new, 1)
+
+        path.write_text(text)
+        PY
+
+        grep -nE 'conffiles|ddns-go.conf|ddns-go.init' "$PKG_DIR/Makefile"
+
     - name: Load custom configuration
       run: |
         [ -e files ] && mv files openwrt/files
