@@ -73,6 +73,18 @@ jobs:
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
 
+    - name: Force PassWall to latest main
+      shell: bash
+      run: |
+        git -C feeds/passwall fetch --depth=1 origin main
+        git -C feeds/passwall reset --hard FETCH_HEAD
+    
+        if grep -R -n "proxySettings" \
+          feeds/passwall/luci-app-passwall/luasrc/passwall/util_xray.lua; then
+          echo "ERROR: PassWall still contains obsolete proxySettings"
+          exit 1
+        fi
+
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
